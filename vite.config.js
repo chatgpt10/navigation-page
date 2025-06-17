@@ -2,8 +2,9 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [vue()],
+  base: mode === "development" ? "http://47.108.188.112:18002/" : "/",
   server: {
     proxy: {
       "/api": {
@@ -13,4 +14,11 @@ export default defineConfig({
       },
     },
   },
-});
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
+}));

@@ -2,7 +2,7 @@ import axios from "axios";
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: "/api", // 使用代理配置
+  baseURL: "/api", // 统一使用相对路径，由服务器配置来处理代理
   timeout: 5000,
   headers: {
     "Content-Type": "application/json",
