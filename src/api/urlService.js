@@ -152,3 +152,14 @@ export const saveLabel = async (labelData) => {
     throw error;
   }
 };
+
+// 编辑标签
+export const updateLabel = async (labelData) => {
+  try {
+    const response = await api.post("/lable/update", labelData);
+    return response.data;
+  } catch (error) {
+    console.error("编辑标签失败:", error);
+    throw error;
+  }
+};

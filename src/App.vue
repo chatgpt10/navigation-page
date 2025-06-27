@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue'
-import { getLabelList, saveLabel, deleteLabel } from './api/urlService'
+import { getLabelList, saveLabel, deleteLabel, updateLabel } from './api/urlService'
 import axios from 'axios'
 
 // 模拟数据
@@ -322,6 +322,7 @@ const handleSubmit = async () => {
   try {
     // 构造符合API要求的请求体
     const submitData = {
+      id: formData.value.id, // 编辑时有id，新增时无id
       lable_name: formData.value.lable_name,
       category_id: 0, // 固定值
       lable_url: 'string', // 固定值
@@ -332,9 +333,13 @@ const handleSubmit = async () => {
       icon_url: formData.value.icon_url
     };
     
-    // 发送POST请求到本地代理地址
-    await axios.post('/api/lable/save', submitData);
-    
+    if (editingItem.value) {
+      // 编辑
+      await updateLabel(submitData);
+    } else {
+      // 新增
+      await saveLabel(submitData);
+    }
     showModal.value = false;
     resetForm();
     // 重新获取列表，更新显示
@@ -497,10 +502,129 @@ const handleRightClick = (event, item) => {
   });
 };
 
+// 编辑功能
+const handleEdit = () => {
+  if (!itemToDelete.value) return;
+  editingItem.value = { ...itemToDelete.value };
+  formData.value = {
+    id: itemToDelete.value.id,
+    lable_name: itemToDelete.value.lable_name,
+    category_id: itemToDelete.value.category_id ?? 0,
+    lable_url: itemToDelete.value.lable_url ?? 'string',
+    dev_url: itemToDelete.value.dev_url ?? '',
+    test_url: itemToDelete.value.test_url ?? '',
+    pre_url: itemToDelete.value.pre_url ?? '',
+    pro_url: itemToDelete.value.pro_url ?? '',
+    icon_url: itemToDelete.value.icon_url ?? ''
+  };
+  showModal.value = true;
+  showContextMenu.value = false;
+};
+
+// 主题图片相关
+const themeImages = [
+  {
+    name: 'none',
+    url: '', // 无背景
+    preview: '', // 可用空白或自定义图标
+    label: '无背景'
+  },
+  {
+    name: 'img1',
+    url: 'https://img1.baidu.com/it/u=2603934083,3021636721&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500',
+    preview: 'https://img1.baidu.com/it/u=2603934083,3021636721&fm=253&fmt=auto&app=138&f=JPEG?w=120&h=80',
+    label: '图片1'
+  },
+  {
+    name: 'img2',
+    url: 'https://img0.baidu.com/it/u=2378188524,3381932151&fm=253&fmt=auto&app=138&f=JPEG?w=1422&h=800',
+    preview: 'https://img0.baidu.com/it/u=2378188524,3381932151&fm=253&fmt=auto&app=138&f=JPEG?w=120&h=80',
+    label: '图片2'
+  },
+  {
+    name: 'img3',
+    url: 'https://www.23jcw.net/wp-content/uploads/2024/03/202403240228514.jpg',
+    preview: 'https://www.23jcw.net/wp-content/uploads/2024/03/202403240228514.jpg',
+    label: '图片3'
+  },
+  {
+    name: 'img4',
+    url: 'https://p2.itc.cn/images01/20230321/0c5aaf55422a4ec3bfd1fc14555ca89e.jpeg',
+    preview: 'https://p2.itc.cn/images01/20230321/0c5aaf55422a4ec3bfd1fc14555ca89e.jpeg',
+    label: '图片4'
+  },
+  {
+    name: 'img5',
+    url: 'https://img.win3000.com/m00/14/36/91a1bb4533971206231955ac4521d968.jpg',
+    preview: 'https://img.win3000.com/m00/14/36/91a1bb4533971206231955ac4521d968.jpg',
+    label: '图片5'
+  },
+  {
+    name: 'img6',
+    url: 'https://pic.rmb.bdstatic.com/bjh/241023/dump/c0270e21a6ca5497f5a0fa66b3f89f4c.png',
+    preview: 'https://pic.rmb.bdstatic.com/bjh/241023/dump/c0270e21a6ca5497f5a0fa66b3f89f4c.png',
+    label: '图片6'
+  }, 
+  {
+    name: 'img7',
+    url: 'https://p8.itc.cn/images01/20230117/02e3c85b3698456f922435616ae4fb07.jpeg',
+    preview: 'https://p8.itc.cn/images01/20230117/02e3c85b3698456f922435616ae4fb07.jpeg',
+    label: '图片7'
+  },
+  { 
+    name: 'img8',
+    url: 'https://c-ssl.dtstatic.com/uploads/blog/202101/27/20210127091657_02886.thumb.1000_0.gif',
+    preview: 'https://c-ssl.dtstatic.com/uploads/blog/202101/27/20210127091657_02886.thumb.1000_0.gif',
+    label: '图片8'
+  },
+  { 
+    name: 'img9',
+    url: 'https://tukuimg.bdstatic.com/scrop/626afb2733ada856d80d4fc9d1320318.gif',
+    preview: 'https://tukuimg.bdstatic.com/scrop/626afb2733ada856d80d4fc9d1320318.gif',
+    label: '图片9'
+  },
+  { 
+    name: 'img10',
+    url: 'https://n.sinaimg.cn/sinakd20230420ac/703/w450h253/20230420/9fb9-gif79adef81db7c331802eba99d9e88f953.gif',
+    preview: 'https://n.sinaimg.cn/sinakd20230420ac/703/w450h253/20230420/9fb9-gif79adef81db7c331802eba99d9e88f953.gif',
+    label: '图片10'
+  }
+];  
+const defaultBgColor = '#0a0a23';
+const currentThemeImg = ref(localStorage.getItem('themeImg') || '');
+
+const setThemeImg = (url) => {
+  currentThemeImg.value = url;
+  localStorage.setItem('themeImg', url);
+  if (url) {
+    document.body.style.backgroundImage = `url('${url}')`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundRepeat = 'no-repeat';
+    document.body.style.backgroundColor = '';
+  } else {
+    document.body.style.backgroundImage = '';
+    document.body.style.backgroundColor = defaultBgColor;
+  }
+};
+
 // 组件挂载时获取数据
 onMounted(() => {
-  fetchCategories()
-  initCodeFlow() // Initialize code flow effect
+  fetchCategories();
+  initCodeFlow();
+  // 应用主题图片或纯色
+  nextTick(() => {
+    if (currentThemeImg.value) {
+      document.body.style.backgroundImage = `url('${currentThemeImg.value}')`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundColor = '';
+    } else {
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundColor = defaultBgColor;
+    }
+  });
 })
 </script>
 
@@ -528,6 +652,16 @@ onMounted(() => {
       <div class="add-button-container">
         <div class="add-button" @click="showModal = true">
           <img src="https://img1.baidu.com/it/u=2882975787,2613993032&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500" alt="Add Icon" class="add-button-icon"/>
+        </div>
+        <div class="theme-buttons">
+          <button v-for="theme in themeImages" :key="theme.name" class="theme-img-btn" @click="setThemeImg(theme.url)" :title="theme.label">
+            <template v-if="theme.url">
+              <img :src="theme.preview" :alt="theme.label" />
+            </template>
+            <template v-else>
+              <span class="theme-none-icon">无</span>
+            </template>
+          </button>
         </div>
       </div>
     </div>
@@ -600,6 +734,7 @@ onMounted(() => {
       <div v-if="showContextMenu" class="context-menu" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }" @click="showContextMenu = false">
         <ul>
           <li @click.stop="showDeleteConfirm(itemToDelete)">删除</li>
+          <li @click.stop="handleEdit">编辑</li>
         </ul>
       </div>
 
@@ -647,6 +782,7 @@ body {
   background-color: #0a0a23; /* Solid dark blue background */
   color: #e0e0e0; /* Light grey text */
   overflow-x: hidden; /* Prevent horizontal scroll */
+  transition: background 0.3s;
 }
 
 .page-wrapper {
@@ -654,6 +790,7 @@ body {
   width: 100vw; /* Ensure it covers the full viewport width */
   position: relative; /* Needed for absolute positioning of overlay */
   overflow: hidden; /* Hide overflow from animations */
+  background: transparent !important;
 }
 
 /* Code Flow Overlay */
@@ -1386,5 +1523,51 @@ h1 {
          box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
 
+}
+
+.theme-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+.theme-img-btn {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  outline: 2px solid #fff;
+  transition: transform 0.2s;
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-img-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.theme-img-btn:hover {
+  transform: scale(1.15);
+}
+.theme-none-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 16px;
+  color: #888;
+  background: #f5f5f5;
+  border-radius: 50%;
+  font-weight: bold;
 }
 </style>
